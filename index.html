@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gorin — Les cinq anneaux</title>
+<meta name="description" content="Journal quotidien inspiré du Livre des cinq anneaux de Miyamoto Musashi.">
+<meta name="theme-color" content="#f3eee4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#13120f" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='38' fill='none' stroke='%23b8342a' stroke-width='12' stroke-dasharray='200 40' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="ink" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="2.2"/>
+    </filter>
+  </defs>
+</svg>
+
+<header class="top">
+  <a class="brand" href="#saisie" aria-label="Accueil">
+    <span class="brand-k">五輪</span>
+    <span class="brand-t">Gorin<small>no sho · journal</small></span>
+  </a>
+  <nav class="tabs" aria-label="Sections">
+    <a href="#saisie" data-tab="saisie">Saisie</a>
+    <a href="#insights" data-tab="insights">Insights</a>
+    <a href="#journal" data-tab="journal">Journal</a>
+    <a href="#reglages" data-tab="reglages">Réglages</a>
+  </nav>
+  <button class="sync-pill" id="syncPill" type="button" title="Synchronisation GitHub">
+    <span class="dot"></span><span class="lbl">Local</span>
+  </button>
+</header>
+
+<main id="app">
+  <section id="view-saisie" class="view" hidden></section>
+  <section id="view-insights" class="view" hidden></section>
+  <section id="view-journal" class="view" hidden></section>
+  <section id="view-reglages" class="view" hidden></section>
+</main>
+
+<footer class="foot">
+  <p id="maxim"></p>
+  <p class="foot-small">Données stockées dans ton navigateur, et dans ton dépôt GitHub si tu l'actives.</p>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="tip" id="tip" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
