@@ -322,3 +322,85 @@ label.f > span em, .f-lbl em { white-space: nowrap; }
   .savebar .btn { flex: 1; }
   .fields { gap: 12px 10px; }
 }
+
+/* ---------- Musashi : gorintō, principe du jour, La Voie ---------- */
+.hero-grid { display: grid; grid-template-columns: minmax(200px, 300px) minmax(0, 1fr); gap: 28px; align-items: center; }
+@media (max-width: 720px) { .hero-grid { grid-template-columns: 1fr; gap: 18px; } .hero-grid .gorinto { max-width: 260px; margin: 0 auto; } }
+.gorinto svg { display: block; width: 100%; height: auto; overflow: visible; }
+.gorinto .gfill { transition: y .5s cubic-bezier(.3,.7,.2,1), height .5s cubic-bezier(.3,.7,.2,1); filter: url(#ink); }
+.gorinto .gk { font-family: var(--serif); font-weight: 800; fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }
+.gorinto .gn { font-family: var(--serif); font-weight: 700; font-size: 14px; fill: var(--ink); }
+.gorinto .gs { font-family: var(--mono); font-size: 12px; fill: var(--ink-3); }
+.gorinto-lg { max-width: 330px; margin: 6px auto 0; }
+
+.principle { border-left: 1px solid var(--line); padding-left: 24px; }
+@media (max-width: 720px) { .principle { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: 18px; } }
+.pr-head { display: flex; gap: 14px; align-items: center; margin-bottom: 10px; }
+.pr-k {
+  flex: 0 0 auto; width: 52px; height: 52px; display: grid; place-items: center; border-radius: 12px;
+  font-family: var(--serif); font-weight: 800; font-size: 28px; color: var(--shu);
+  background: color-mix(in srgb, var(--shu) 10%, transparent); border: 1px solid color-mix(in srgb, var(--shu) 25%, transparent);
+}
+.pr-n { font-size: 12px; color: var(--ink-3); letter-spacing: .02em; }
+.pr-head h3 { font-size: 20px; line-height: 1.25; margin-top: 2px; }
+.pr-jp { font-family: var(--serif); font-size: 12.5px; color: var(--ink-3); margin-top: 2px; }
+.principle > p { margin: 0 0 8px; color: var(--ink-2); }
+.principle .pr-q { font-family: var(--serif); font-style: italic; color: var(--ink); margin-bottom: 14px; }
+.principle .f-lbl { margin-bottom: 6px; }
+
+.teach { margin: -6px 0 14px; font-family: var(--serif); font-style: italic; font-size: 14px; color: var(--ink-2); }
+.refl > span { color: var(--ink-3) !important; font-family: var(--serif); font-style: italic; font-weight: 500 !important; }
+.refl input { background: transparent; border-style: dashed; }
+
+.foot p .dk { display: block; font-family: var(--sans); font-size: 11px; color: var(--ink-3); letter-spacing: .06em; margin-top: 2px; }
+
+.voie-top { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
+@media (max-width: 760px) { .voie-top { grid-template-columns: 1fr; } }
+.tanren .t-big { font-family: var(--serif); font-size: 46px; font-weight: 800; line-height: 1; margin: 6px 0 18px; }
+.tanren .t-big small { font-family: var(--sans); font-size: 14px; font-weight: 400; color: var(--ink-3); }
+.t-row { display: flex; justify-content: space-between; font-size: 13.5px; margin: 12px 0 6px; }
+.t-row span { font-family: var(--serif); font-weight: 700; }
+.t-row b { font-family: var(--mono); font-weight: 500; font-size: 12.5px; color: var(--ink-2); }
+.tbar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.tbar i { display: block; height: 100%; background: var(--shu); border-radius: 3px; min-width: 2px; }
+.dk-today { margin-top: 18px; padding: 14px 16px; border-radius: 10px; background: color-mix(in srgb, var(--shu) 6%, transparent); border: 1px solid color-mix(in srgb, var(--shu) 18%, transparent); }
+.dk-today p { margin: 4px 0 0; font-family: var(--serif); font-size: 17px; font-weight: 700; }
+
+h2.sec { font-size: 24px; margin: 36px 0 6px; }
+.sec-sub { color: var(--ink-3); margin: 0 0 14px; max-width: 680px; }
+.books { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; margin-top: 14px; }
+.books .book:last-child { grid-column: 1 / -1; }
+@media (max-width: 760px) { .books { grid-template-columns: 1fr; } }
+.book { --ring: var(--ink); position: relative; overflow: hidden; }
+.book::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--ring); }
+.book header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.book .kanji { font-family: var(--serif); font-weight: 800; font-size: 30px; color: var(--ring); width: 46px; height: 46px; display: grid; place-items: center; border-radius: 12px; background: color-mix(in srgb, var(--ring) 10%, transparent); }
+.book h3 { font-size: 18px; }
+.book header p { margin: 1px 0 0; font-size: 12.5px; color: var(--ink-3); }
+.book .mini { margin-left: auto; text-align: right; font-family: var(--mono); color: var(--ink-3); }
+.book .mini b { display: block; color: var(--ring); font-size: 20px; font-weight: 500; line-height: 1; }
+.book .mini small { font-size: 11px; }
+.book > p { margin: 0 0 10px; color: var(--ink-2); }
+.book ul { margin: 0; padding-left: 18px; }
+.book li { margin: 6px 0; }
+.book li::marker { color: var(--ring); }
+
+.principles { list-style: none; margin: 0; padding: 0; }
+.principles li { display: grid; grid-template-columns: auto minmax(0,1fr) 120px; gap: 14px; align-items: center; padding: 14px 8px; border-top: 1px solid var(--line); border-radius: 10px; }
+.principles li:first-child { border-top: 0; }
+.principles li.today { background: color-mix(in srgb, var(--shu) 6%, transparent); }
+.principles .pr-k { width: 42px; height: 42px; font-size: 22px; }
+.principles h3 { font-size: 16px; margin: 2px 0; }
+.principles p { margin: 0; font-size: 13.5px; color: var(--ink-2); }
+.pr-stat { text-align: right; font-family: var(--mono); }
+.pr-stat b { font-weight: 500; font-size: 16px; }
+.pr-stat small { color: var(--ink-3); font-size: 11.5px; }
+.pr-stat .tbar { margin-top: 6px; height: 4px; }
+@media (max-width: 600px) { .principles li { grid-template-columns: auto minmax(0,1fr); } .pr-stat { grid-column: 2; text-align: left; } }
+.dokkodo { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 28px; }
+@media (max-width: 640px) { .dokkodo { columns: 1; } }
+.dokkodo li { break-inside: avoid; display: flex; gap: 12px; padding: 8px 6px; border-radius: 8px; font-family: var(--serif); font-size: 15px; }
+.dokkodo li span { flex: 0 0 24px; font-family: var(--mono); font-size: 12px; color: var(--ink-3); padding-top: 2px; text-align: right; }
+.dokkodo li.today { background: color-mix(in srgb, var(--shu) 8%, transparent); font-weight: 700; }
+.dokkodo li.today span { color: var(--shu); }
+.foot .foot-small a { color: inherit; text-decoration-color: var(--line-2); }

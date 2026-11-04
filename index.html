@@ -26,10 +26,11 @@
 <header class="top">
   <a class="brand" href="#saisie" aria-label="Accueil">
     <span class="brand-k">五輪</span>
-    <span class="brand-t">Gorin<small>no sho · journal</small></span>
+    <span class="brand-t">Gorin<small>no sho · journal de la Voie</small></span>
   </a>
   <nav class="tabs" aria-label="Sections">
     <a href="#saisie" data-tab="saisie">Saisie</a>
+    <a href="#voie" data-tab="voie">La Voie</a>
     <a href="#insights" data-tab="insights">Insights</a>
     <a href="#journal" data-tab="journal">Journal</a>
     <a href="#reglages" data-tab="reglages">Réglages</a>
@@ -41,6 +42,7 @@
 
 <main id="app">
   <section id="view-saisie" class="view" hidden></section>
+  <section id="view-voie" class="view" hidden></section>
   <section id="view-insights" class="view" hidden></section>
   <section id="view-journal" class="view" hidden></section>
   <section id="view-reglages" class="view" hidden></section>
@@ -48,12 +50,14 @@
 
 <footer class="foot">
   <p id="maxim"></p>
+  <p class="foot-small" id="maximSrc"></p>
   <p class="foot-small">Données stockées dans ton navigateur, et dans ton dépôt GitHub si tu l'actives.</p>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tip" id="tip" hidden></div>
 
+<script src="musashi.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

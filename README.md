@@ -11,6 +11,13 @@ Chaque domaine de ta vie est rattaché à un anneau :
 | 風 Vent | Les autres | temps social (h), qualité des échanges |
 | 空 Vide | Esprit | méditation (min), humeur, énergie |
 
+**Inspiré du texte** :
+- **Gorintō** : la stèle à cinq pierres (cube, sphère, toit, demi-lune, joyau) qui donne son nom au livre ; chaque pierre se remplit selon ton score du jour.
+- **Les neuf principes** du livre de la Terre : un principe par jour, que tu notes de 1 à 5.
+- **Réflexions** : une question par anneau, tirée de l'enseignement de chaque livre.
+- **Page La Voie** : les cinq livres, tes scores par principe, le **tanren** (1 000 jours pour forger, 10 000 pour polir) et les 21 préceptes du **Dokkōdō**.
+- **Lectures** : « l'arme favorite » (un anneau domine les autres), « montagne et mer » (une métrique stagne, change d'approche).
+
 Chaque anneau reçoit un score sur 100 (objectif atteint = 100 %), et un score d'**équilibre** fait la moyenne des cinq.
 
 **Insights** : radar des anneaux vs période précédente, trajectoires lissées, calendrier de constance, explorateur de métrique, progression au bench (1RM d'Epley, records), corrélations entre domaines (ex. sommeil → humeur, sport → sommeil du lendemain), semaine type.
@@ -20,7 +27,7 @@ Site 100 % statique : aucun serveur, aucune dépendance.
 ## Déployer sur GitHub Pages
 
 1. Crée un dépôt nommé **`<ton-pseudo>.github.io`** (public).
-2. Mets-y le contenu de ce dossier (`index.html`, `style.css`, `app.js`, `.nojekyll`, `README.md`) :
+2. Mets-y le contenu de ce dossier (`index.html`, `style.css`, `musashi.js`, `app.js`, `.nojekyll`, `README.md`) :
    ```bash
    git clone https://github.com/<ton-pseudo>/<ton-pseudo>.github.io
    cd <ton-pseudo>.github.io

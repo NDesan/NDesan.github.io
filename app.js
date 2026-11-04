@@ -170,7 +170,7 @@ function bestE1rmBefore(date) {
 /* ============================================================
  * 5. Routage
  * ============================================================ */
-const VIEWS = ['saisie', 'insights', 'journal', 'reglages'];
+const VIEWS = ['saisie', 'voie', 'insights', 'journal', 'reglages'];
 let editDate = todayISO();
 function route() {
   let [v, arg] = (location.hash.slice(1) || 'saisie').split('/');
@@ -178,7 +178,7 @@ function route() {
   if (v === 'saisie' && arg && /^\d{4}-\d{2}-\d{2}$/.test(arg)) editDate = arg;
   VIEWS.forEach(x => { $('#view-' + x).hidden = x !== v; });
   $$('.tabs a').forEach(a => { if (a.dataset.tab === v) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
-  ({ saisie: renderSaisie, insights: renderInsights, journal: renderJournal, reglages: renderReglages })[v]();
+  ({ saisie: renderSaisie, voie: renderVoie, insights: renderInsights, journal: renderJournal, reglages: renderReglages })[v]();
   window.scrollTo({ top: 0 });
 }
 
@@ -212,6 +212,8 @@ function renderSaisie() {
   const existing = get(editDate);
   draft = existing ? { ...existing } : {};
   const isToday = editDate === todayISO();
+  const pIdx = isNum(draft.principle) ? draft.principle : principleIdx(editDate), pr = PRINCIPLES[pIdx];
+  const qIdx = promptIdx(editDate);
 
   el.innerHTML = `
     <div class="view-head">
@@ -228,10 +230,20 @@ function renderSaisie() {
 
     <div class="card hero">
       <div class="hero-top">
-        <h2>Les cinq anneaux du jour</h2>
+        <h2>Le gorintō du jour</h2>
         <div class="total">équilibre <b id="totalScore">—</b> / 100</div>
       </div>
-      <div id="heroRings"></div>
+      <div class="hero-grid">
+        <div class="gorinto" id="heroRings">${gorintoSVG(null, 'gday')}</div>
+        <div class="principle">
+          <div class="pr-head"><span class="pr-k">${pr.k}</span>
+            <div><div class="pr-n">Principe ${pIdx + 1} / 9 · livre de la Terre</div><h3>${esc(pr.t)}</h3><div class="pr-jp">${pr.jp}</div></div></div>
+          <p>${esc(pr.d)}</p>
+          <p class="pr-q">${esc(pr.q)}</p>
+          <div class="f-lbl">As-tu honoré ce principe aujourd'hui ? <em>1–5</em></div>
+          <div class="scale" data-k="principle_s" style="--ring:var(--shu)">${[1, 2, 3, 4, 5].map(v => `<button type="button" data-v="${v}" aria-label="Principe ${v}">${v}</button>`).join('')}</div>
+        </div>
+      </div>
     </div>
 
     <form id="entryForm" autocomplete="off">
@@ -243,8 +255,11 @@ function renderSaisie() {
               <div><h3>${r.name} <small style="font-family:var(--sans);font-weight:400;font-size:12px;color:var(--ink-3)">· ${r.book}</small></h3><p>${r.sub}</p></div>
               <span class="mini" data-mini="${r.id}"><b>—</b></span>
             </header>
+            <p class="teach">${esc(MUSASHI[r.id].teach)}</p>
             <div class="fields">${r.metrics.map(fieldHTML).join('')}
               ${r.id === 'feu' ? '<div class="e1rm" id="e1rmLine"></div>' : ''}
+              <label class="f full refl"><span>${esc(MUSASHI[r.id].prompts[qIdx])} <em>réflexion</em></span>
+                <input type="text" name="refl_${r.id}" maxlength="280" placeholder="Une ligne suffit…"></label>
             </div>
           </section>`).join('')}
       </div>
@@ -265,6 +280,8 @@ function renderSaisie() {
     if (f.type === 'scale') paintScale(f.k);
     else { const inp = el.querySelector(`[name="${f.k}"]`); if (inp && draft[f.k] != null) inp.value = draft[f.k]; }
   }
+  paintScale('principle_s');
+  RINGS.forEach(r => { const inp = el.querySelector(`[name="refl_${r.id}"]`); if (inp && draft['refl_' + r.id]) inp.value = draft['refl_' + r.id]; });
 
   el.querySelector('#prevDay').onclick = () => goDay(addDays(editDate, -1));
   el.querySelector('#nextDay').onclick = () => goDay(addDays(editDate, 1));
@@ -302,7 +319,7 @@ function paintScale(k) {
 }
 function onFormInput(e) {
   const t = e.target; if (!t.name) return;
-  if (t.name === 'note' || t.name === 'sport_type') draft[t.name] = t.value || null;
+  if (t.name === 'note' || t.name === 'sport_type' || t.name.startsWith('refl_')) draft[t.name] = t.value || null;
   else { const v = t.value === '' ? null : parseFloat(t.value.replace(',', '.')); draft[t.name] = isNum(v) ? v : null; }
   markDirty(); updateLive();
 }
@@ -310,7 +327,7 @@ function markDirty() { const s = $('#saveState'); if (s) s.textContent = 'Modifi
 function updateLive() {
   const best = Math.max(bestE1rmBefore(addDays(editDate, -1)), e1rm(draft) || 0);
   const sc = scoreEntry(draft, best);
-  $('#heroRings').innerHTML = ensoRow(sc);
+  updateGorinto($('#heroRings'), sc);
   $('#totalScore').textContent = Object.values(draft).some(v => v != null && v !== '') ? sc.overall : '—';
   RINGS.forEach(r => { const m = $(`[data-mini="${r.id}"]`); if (m) m.innerHTML = `<b>${sc[r.id] ?? '—'}</b>`; });
   const line = $('#e1rmLine'); const x = e1rm(draft);
@@ -323,6 +340,8 @@ function saveDay() {
   const clean = {};
   for (const f of FIELDS) { const v = draft[f.k]; if (v != null && v !== '') clean[f.k] = v; }
   if (draft.note && draft.note.trim()) clean.note = draft.note.trim();
+  if (isNum(draft.principle_s)) { clean.principle_s = draft.principle_s; clean.principle = isNum(draft.principle) ? draft.principle : principleIdx(editDate); }
+  for (const r of RINGS) { const v = draft['refl_' + r.id]; if (v && v.trim()) clean['refl_' + r.id] = v.trim(); }
   if (!Object.keys(clean).length) { toast('Rien à enregistrer pour ce jour'); return; }
   clean.updatedAt = Date.now();
   entries[editDate] = clean; saveEntries();
@@ -679,7 +698,7 @@ function readings(dates, prev, curR, prevR) {
   // corrélation la plus forte
   const c = correlations(dates)[0];
   if (c && Math.abs(c.r) >= .35) out.push(li('var(--vide)', '空', esc(corrSentence(c)), `Le lien le plus fort repéré (r = ${nf(c.r, 2)}).`));
-  return out.slice(0, 6);
+  return [...musashiReads(curR, li), ...out].slice(0, 7);
 }
 function fmtHours(h) { const m = Math.round(h * 60); return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`; }
 
@@ -693,7 +712,7 @@ function renderJournal() {
     <div class="card">${l.length ? `<ul class="jl">${l.map(d => `<li data-d="${d}">
       <div class="d">${esc(fmtDay(d))}<small>${esc(fmtDay(d, { weekday: 'long', year: 'numeric' }))}</small></div>
       <div style="display:flex;gap:14px;align-items:center;min-width:0"><div class="dots">${RINGS.map(r => `<span class="${sc[d][r.id] == null ? 'na' : ''}" style="--c:${ringColor(r.id)}" title="${r.name}">${sc[d][r.id] ?? r.kanji}</span>`).join('')}</div>
-        <span class="nt">${esc(entries[d].note || '')}</span></div>
+        <span class="nt">${esc(entries[d].note || RINGS.map(r => entries[d]['refl_' + r.id]).find(Boolean) || '')}</span></div>
       <div class="sc">${sc[d].overall}</div></li>`).join('')}</ul>` : `<div class="empty"><div class="k">地</div><p>Aucune journée pour l'instant. Tout commence par la Terre.</p></div>`}</div>`;
   el.querySelectorAll('.jl li').forEach(li => li.onclick = () => { location.hash = 'saisie/' + li.dataset.d; });
 }
@@ -773,9 +792,9 @@ function download(name, text, type) {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 function exportCSV() {
-  const sc = scores(), cols = ['date', ...FIELDS.map(f => f.k), 'bench_e1rm', ...RINGS.map(r => 'score_' + r.id), 'score_equilibre', 'note'];
+  const sc = scores(), cols = ['date', ...FIELDS.map(f => f.k), 'bench_e1rm', ...RINGS.map(r => 'score_' + r.id), 'score_equilibre', 'principe', 'principe_score', ...RINGS.map(r => 'refl_' + r.id), 'note'];
   const q = v => v == null ? '' : /[",\n;]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
-  const rows = live().map(d => { const e = entries[d]; return [d, ...FIELDS.map(f => e[f.k]), e1rm(e) ? +e1rm(e).toFixed(1) : null, ...RINGS.map(r => sc[d][r.id]), sc[d].overall, e.note].map(q).join(','); });
+  const rows = live().map(d => { const e = entries[d]; return [d, ...FIELDS.map(f => e[f.k]), e1rm(e) ? +e1rm(e).toFixed(1) : null, ...RINGS.map(r => sc[d][r.id]), sc[d].overall, isNum(e.principle) ? e.principle + 1 : null, e.principle_s, ...RINGS.map(r => e['refl_' + r.id]), e.note].map(q).join(','); });
   download(`gorin-${todayISO()}.csv`, [cols.join(','), ...rows].join('\n'), 'text/csv');
 }
 function applyTheme() { const t = settings.theme || 'auto'; if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t); }
@@ -886,6 +905,7 @@ function loadDemo(days = 75) {
       demo: true, updatedAt: t,
     };
     if (type) e.sport_type = type;
+    if (rnd() < .75) { e.principle = principleIdx(d); e.principle_s = sc5(2.8 + prog + (med ? .4 : 0) + gauss() * .8); }
     if (type === 'Musculation') { bench += .6 + gauss() * .4 + (sleep - 7) * .2; e.bench_kg = Math.round(bench / 2.5) * 2.5; e.bench_reps = 3 + Math.floor(rnd() * 5); }
     for (const k in e) if (e[k] == null) delete e[k];
     entries[d] = e; prevSport = sport; added++;
@@ -894,12 +914,129 @@ function loadDemo(days = 75) {
 }
 
 /* ============================================================
+ * 14b. Gorintō, lectures de Musashi, vue « La Voie »
+ * ============================================================ */
+// Le gorintō : stèle bouddhique à cinq pierres, de bas en haut Terre (cube), Eau (sphère),
+// Feu (toit), Vent (demi-lune), Vide (joyau). C'est elle qui donne son nom au Gorin no sho.
+const GORINTO = {
+  vide:  { d: 'M100 8 C112 22 130 34 130 50 C130 64 116 72 100 72 C84 72 70 64 70 50 C70 34 88 22 100 8 Z', top: 8, bot: 72, ky: 52, kr: 130, fs: 18 },
+  vent:  { d: 'M52 76 L148 76 C148 96 126 110 100 110 C74 110 52 96 52 76 Z', top: 76, bot: 110, ky: 90, kr: 148, fs: 18 },
+  feu:   { d: 'M86 114 L114 114 C130 132 150 140 172 146 L172 156 L28 156 L28 146 C50 140 70 132 86 114 Z', top: 114, bot: 156, ky: 141, kr: 172, fs: 17 },
+  eau:   { d: 'M54 206 A46 46 0 1 0 146 206 A46 46 0 1 0 54 206 Z', top: 160, bot: 252, ky: 206, kr: 146, fs: 24 },
+  terre: { d: 'M40 256 H160 V314 H40 Z', top: 256, bot: 314, ky: 285, kr: 160, fs: 24 },
+};
+function gorintoSVG(sc, uid = 'g') {
+  let defs = '', body = '';
+  for (const id of ['vide', 'vent', 'feu', 'eau', 'terre']) {
+    const s = GORINTO[id], r = RING_BY_ID[id], v = sc?.[id], h = (s.bot - s.top) * (v == null ? 0 : clamp(v, 0, 100) / 100);
+    defs += `<clipPath id="${uid}-${id}"><path d="${s.d}"/></clipPath>`;
+    body += `<g data-g="${id}">
+      <rect x="0" y="${s.top}" width="200" height="${s.bot - s.top}" fill="var(--line)" clip-path="url(#${uid}-${id})"/>
+      <rect class="gfill" x="0" y="${s.bot - h}" width="200" height="${h}" fill="${ringColor(id)}" clip-path="url(#${uid}-${id})"/>
+      <path d="${s.d}" fill="none" stroke="var(--ink)" stroke-opacity=".22" stroke-width="1.2"/>
+      <text class="gk" x="100" y="${s.ky}" text-anchor="middle" dominant-baseline="central" font-size="${s.fs}">${r.kanji}</text>
+      <line x1="${s.kr + 6}" x2="196" y1="${s.ky}" y2="${s.ky}" stroke="var(--line-2)" stroke-dasharray="2 3"/>
+      <text class="gn" x="202" y="${s.ky - 4}">${r.name}</text>
+      <text class="gs" x="202" y="${s.ky + 12}">${v == null ? '—' : v}</text>
+    </g>`;
+  }
+  return `<svg viewBox="0 0 268 320" role="img" aria-label="Gorintō, les cinq pierres"><defs>${defs}</defs>${body}</svg>`;
+}
+function updateGorinto(el, sc) {
+  if (!el) return;
+  for (const id in GORINTO) {
+    const s = GORINTO[id], g = el.querySelector(`[data-g="${id}"]`); if (!g) continue;
+    const v = sc?.[id], h = (s.bot - s.top) * (v == null ? 0 : clamp(v, 0, 100) / 100);
+    const f = g.querySelector('.gfill'); f.setAttribute('y', s.bot - h); f.setAttribute('height', h);
+    g.querySelector('.gs').textContent = v == null ? '—' : v;
+  }
+}
+
+function musashiReads(curR, li) {
+  const out = [];
+  const valid = curR.map((v, i) => [v, i]).filter(x => isNum(x[0]));
+  if (valid.length >= 4) {
+    const hi = valid.reduce((a, b) => b[0] > a[0] ? b : a), lo = valid.reduce((a, b) => b[0] < a[0] ? b : a);
+    if (hi[0] - lo[0] >= 25) out.push(li('var(--shu)', '兵', `L'arme favorite : <b>${RINGS[hi[1]].name}</b> (${hi[0]}) écrase <b>${RINGS[lo[1]].name}</b> (${lo[0]}).`,
+      "Musashi met en garde contre ceux qui ne cultivent qu'une seule arme. Rééquilibre ton gorintō."));
+  }
+  const last = rangeDates(21); let worst = null;
+  for (const f of FIELDS.filter(f => f.target != null)) {
+    const vals = last.map(d => fieldVal(get(d), f.k)).filter(isNum); if (vals.length < 10) continue;
+    const m = mean(vals), t = target(f.k), sl = slopePerWeek(last, d => fieldVal(get(d), f.k));
+    if (m < t * .8 && sl != null && Math.abs(sl) < t * .04) { const gap = 1 - m / t; if (!worst || gap > worst.gap) worst = { f, m, gap }; }
+  }
+  if (worst) out.push(li(ringColor(worst.f.ring), '山', `Montagne et mer : ${esc(worst.f.short.toLowerCase())} stagne depuis 3 semaines (${nf(worst.m)} ${worst.f.unit} pour un objectif de ${nf(target(worst.f.k))}).`,
+    "Quand une tactique a échoué deux fois, Musashi conseille de ne pas la tenter une troisième : change d'approche."));
+  const n = live().length;
+  out.push(li('var(--eau)', '鍛', `Tanren : <b>${n} jour${n > 1 ? 's' : ''}</b> de pratique sur les 1 000 qui forgent.`,
+    n >= 1000 ? `Le fer est forgé. Encore ${nf(10000 - n, 0)} jours pour le polir.` : `Encore ${nf(1000 - n, 0)} jours pour forger, 10 000 pour polir.`));
+  return out;
+}
+
+function renderVoie() {
+  const el = $('#view-voie'), l = live(), sc = scores(), today = todayISO();
+  const d30 = rangeDates(30);
+  const avg = Object.fromEntries(RINGS.map(r => { const v = avgRing(d30, r.id); return [r.id, v == null ? null : Math.round(v)]; }));
+  const n = l.length, pT = principleIdx(today), dT = dokkodoIdx(today);
+  const pStats = PRINCIPLES.map((_, i) => { const v = l.filter(d => entries[d].principle === i && isNum(entries[d].principle_s)).map(d => entries[d].principle_s); return { m: mean(v), n: v.length }; });
+  const rated = pStats.filter(s => s.n);
+  const strongP = rated.length >= 3 ? pStats.indexOf(rated.reduce((a, b) => b.m > a.m ? b : a)) : -1;
+  const weakP = rated.length >= 3 ? pStats.indexOf(rated.reduce((a, b) => b.m < a.m ? b : a)) : -1;
+  const bar = (v, max) => `<div class="tbar"><i style="width:${clamp(v / max * 100, 0, 100)}%"></i></div>`;
+
+  el.innerHTML = `
+    <div class="view-head"><div><h1><span style="color:var(--shu)">道</span> La Voie</h1>
+      <p>Le Gorin no sho, écrit par Miyamoto Musashi en 1645 dans la grotte de Reigandō : cinq livres pour une seule Voie.</p></div></div>
+
+    <div class="grid voie-top">
+      <div class="card"><h2>Ton gorintō</h2><p class="sub">Les cinq pierres, remplies selon ta moyenne des 30 derniers jours</p>
+        <div class="gorinto gorinto-lg">${gorintoSVG(avg, 'gvoie')}</div></div>
+      <div class="card tanren"><h2><span style="color:var(--eau)">鍛錬</span> Tanren</h2>
+        <p class="sub">« Mille jours d'entraînement pour forger, dix mille pour polir » (livre de l'Eau)</p>
+        <div class="t-big">${nf(n, 0)}<small> jour${n > 1 ? 's' : ''} consigné${n > 1 ? 's' : ''}</small></div>
+        <div class="t-row"><span>鍛 Forger</span><b>${nf(Math.min(n, 1000), 0)} / 1 000</b></div>${bar(n, 1000)}
+        <div class="t-row"><span>錬 Polir</span><b>${nf(n, 0)} / 10 000</b></div>${bar(n, 10000)}
+        <p class="fine">${n >= 1000 ? 'Le fer est forgé : chaque jour désormais le polit.' : `À ce rythme quotidien, le fer sera forgé le ${esc(fmtDay(addDays(today, 1000 - n), { day: 'numeric', month: 'long', year: 'numeric' }))}.`}
+          Série en cours : <b>${streak()} j</b> · record : <b>${longestStreak()} j</b>.</p>
+        <div class="dk-today"><div class="pr-n">Précepte du jour · Dokkōdō ${dT + 1} / 21</div><p>${esc(DOKKODO[dT])}</p></div>
+      </div>
+    </div>
+
+    <h2 class="sec">Les cinq livres</h2>
+    <div class="books">${RINGS.map(r => { const m = MUSASHI[r.id]; return `
+      <article class="card book" style="--ring:${ringColor(r.id)}">
+        <header><span class="kanji">${r.kanji}</span><div><h3>Livre ${r.name.startsWith('E') ? "de l'" : 'du '}${r.name}</h3><p>${r.book} · ${m.jp}</p></div>
+          <span class="mini"><b>${avg[r.id] ?? '—'}</b><small>/100 · 30 j</small></span></header>
+        <p>${esc(m.essence)}</p>
+        <ul>${m.teachings.map(t => `<li>${esc(t)}</li>`).join('')}</ul>
+        <p class="fine">Dans ton journal : ${r.metrics.map(x => x.short.toLowerCase()).join(', ')}.</p>
+      </article>`; }).join('')}</div>
+
+    <h2 class="sec">Les neuf principes</h2>
+    <p class="sec-sub">Musashi clôt le livre de la Terre par neuf règles pour qui veut apprendre sa stratégie. Chaque jour, la saisie t'en propose une et te demande si tu l'as honorée.</p>
+    <div class="card"><ol class="principles">${PRINCIPLES.map((p, i) => `
+      <li class="${i === pT ? 'today' : ''}">
+        <span class="pr-k">${p.k}</span>
+        <div><div class="pr-n">${i + 1}. ${i === pT ? '<b>aujourd’hui</b> · ' : ''}${p.jp}</div><h3>${esc(p.t)}</h3><p>${esc(p.d)}</p></div>
+        <div class="pr-stat">${pStats[i].n ? `<b>${nf(pStats[i].m, 1)}</b><small>/5 · ${pStats[i].n} j</small>${bar(pStats[i].m - 1, 4)}` : '<small>pas encore noté</small>'}</div>
+      </li>`).join('')}</ol>
+      ${strongP >= 0 && strongP !== weakP ? `<p class="fine">Ton principe le mieux tenu : <b>${esc(PRINCIPLES[strongP].t.toLowerCase())}</b>. Celui à travailler : <b>${esc(PRINCIPLES[weakP].t.toLowerCase())}</b>.</p>` : ''}</div>
+
+    <h2 class="sec">Dokkōdō, la Voie de la solitude</h2>
+    <p class="sec-sub">Vingt et un préceptes écrits par Musashi une semaine avant sa mort et remis à son disciple Terao Magonojō avec le Gorin no sho. Un précepte par jour apparaît en bas de chaque page.</p>
+    <div class="card"><ol class="dokkodo">${DOKKODO.map((t, i) => `<li class="${i === dT ? 'today' : ''}"><span>${i + 1}</span>${esc(t)}</li>`).join('')}</ol>
+      <p class="fine">Les textes sont des paraphrases en français des originaux japonais.</p></div>`;
+}
+
+/* ============================================================
  * 15. Démarrage
  * ============================================================ */
 function init() {
   applyTheme();
-  const dayIdx = Math.floor(Date.now() / 864e5) % MAXIMS.length;
-  $('#maxim').textContent = MAXIMS[dayIdx];
+  const dk = dokkodoIdx(todayISO());
+  $('#maxim').textContent = DOKKODO[dk];
+  $('#maximSrc').innerHTML = `<a href="#voie">Dokkōdō, précepte ${dk + 1} / 21</a>`;
   $('#syncPill').onclick = () => { location.hash = 'reglages'; };
   setPill();
   addEventListener('hashchange', route);
