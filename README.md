@@ -11,6 +11,12 @@ Chaque domaine de ta vie est rattaché à un anneau :
 | 風 Vent | Les autres | temps social (h), qualité des échanges |
 | 空 Vide | Esprit | méditation (min), humeur, énergie |
 
+**Construire ses journées** :
+- **Aujourd'hui** : l'essentiel du jour (une seule priorité), les tâches du jour (modifiables d'un clic, report des tâches d'hier), et le cap (rituels faits, prochaines étapes de tes objectifs).
+- **Rituels** dans chaque anneau : une liste d'habitudes cochables, avec ajout rapide. Chaque rituel a un déclencheur (« après mon café… »), une version minimale de 2 minutes, des jours, une série, un taux sur 30 jours et une barre d'ancrage de 66 jours. Alerte « ne manque jamais deux fois ».
+- **Objectifs** : vision à 3–5 ans, objectifs par axe (carrière, santé, savoir…), étapes intermédiaires avec échéances réparties automatiquement, repère « dans les temps / en retard », rituels liés, revue de la semaine.
+- **Métriques libres** (Réglages) : renomme, ajoute ou retire des métriques (nombre, échelle 1–5, oui/non, choix, texte) et règle leurs objectifs.
+
 **Inspiré du texte** :
 - **Gorintō** : la stèle à cinq pierres (cube, sphère, toit, demi-lune, joyau) qui donne son nom au livre ; chaque pierre se remplit selon ton score du jour.
 - **Les neuf principes** du livre de la Terre : un principe par jour, que tu notes de 1 à 5.
@@ -27,7 +33,7 @@ Site 100 % statique : aucun serveur, aucune dépendance.
 ## Déployer sur GitHub Pages
 
 1. Crée un dépôt nommé **`<ton-pseudo>.github.io`** (public).
-2. Mets-y le contenu de ce dossier (`index.html`, `style.css`, `musashi.js`, `app.js`, `.nojekyll`, `README.md`) :
+2. Mets-y le contenu de ce dossier (`index.html`, `style.css`, `musashi.js`, `app.js`, `rituels.js`, `.nojekyll`, `README.md`) :
    ```bash
    git clone https://github.com/<ton-pseudo>/<ton-pseudo>.github.io
    cd <ton-pseudo>.github.io

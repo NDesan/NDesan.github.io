@@ -61,8 +61,8 @@ const RINGS = [
   },
 ];
 const RING_BY_ID = Object.fromEntries(RINGS.map(r => [r.id, r]));
-const FIELDS = RINGS.flatMap(r => r.metrics.map(m => ({ ...m, ring: r.id })));
-const FIELD_BY_K = Object.fromEntries(FIELDS.map(f => [f.k, f]));
+let FIELDS = RINGS.flatMap(r => r.metrics.map(m => ({ ...m, ring: r.id })));
+let FIELD_BY_K = Object.fromEntries(FIELDS.map(f => [f.k, f]));
 // Métrique virtuelle : 1RM estimé
 FIELD_BY_K.bench_e1rm = { k: 'bench_e1rm', short: '1RM estimé (bench)', label: '1RM estimé (bench)', unit: 'kg', ring: 'feu', type: 'num' };
 
@@ -122,7 +122,7 @@ settings.gh = Object.assign({ owner: '', repo: '', branch: 'main', path: 'gorin/
 
 const saveEntries = () => { lsSet(LS_E, entries); _scores = null; };
 const saveSettings = () => lsSet(LS_S, settings);
-const target = k => isNum(settings.targets[k]) ? settings.targets[k] : FIELD_BY_K[k].target;
+const target = k => isNum(settings.targets[k]) ? settings.targets[k] : FIELD_BY_K[k]?.target;
 const live = () => Object.keys(entries).filter(d => !entries[d].deleted).sort();
 const get = d => (entries[d] && !entries[d].deleted) ? entries[d] : null;
 
@@ -140,13 +140,15 @@ function metricScore(m, e, best) {
   if (m.noScore) return null;
   if (m.bench) { const x = e1rm(e); return x && best ? x / best : null; }
   const v = e[m.k]; if (!isNum(v)) return null;
+  if (m.type === 'check') return v ? 1 : 0;
   if (m.type === 'scale') return (v - 1) / 4;
   const t = target(m.k); return t > 0 ? Math.min(1, v / t) : null;
 }
-function scoreEntry(e, best) {
-  const s = {};
+function scoreEntry(e, best, date) {
+  const s = {}, hs = date ? habitsOn(date) : [];
   for (const r of RINGS) {
     const vals = r.metrics.map(m => metricScore(m, e, best)).filter(isNum);
+    for (const h of hs) if (h.ring === r.id) vals.push(Math.min(1, (e.done && e.done[h.id]) || 0));
     s[r.id] = vals.length ? Math.round(mean(vals) * 100) : null;
   }
   // global : les anneaux absents comptent pour 0 — on récompense l'équilibre
@@ -159,7 +161,7 @@ function scores() {
   const out = {}; let best = 0;
   for (const d of live()) {
     const e = entries[d]; const x = e1rm(e); if (x) best = Math.max(best, x);
-    out[d] = scoreEntry(e, best);
+    out[d] = scoreEntry(e, best, d);
   }
   return (_scores = out);
 }
@@ -170,7 +172,7 @@ function bestE1rmBefore(date) {
 /* ============================================================
  * 5. Routage
  * ============================================================ */
-const VIEWS = ['saisie', 'voie', 'insights', 'journal', 'reglages'];
+const VIEWS = ['saisie', 'objectifs', 'rituels', 'voie', 'insights', 'journal', 'reglages'];
 let editDate = todayISO();
 function route() {
   let [v, arg] = (location.hash.slice(1) || 'saisie').split('/');
@@ -178,7 +180,7 @@ function route() {
   if (v === 'saisie' && arg && /^\d{4}-\d{2}-\d{2}$/.test(arg)) editDate = arg;
   VIEWS.forEach(x => { $('#view-' + x).hidden = x !== v; });
   $$('.tabs a').forEach(a => { if (a.dataset.tab === v) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
-  ({ saisie: renderSaisie, voie: renderVoie, insights: renderInsights, journal: renderJournal, reglages: renderReglages })[v]();
+  ({ saisie: renderSaisie, objectifs: renderObjectifs, rituels: renderRituels, voie: renderVoie, insights: renderInsights, journal: renderJournal, reglages: renderReglages })[v]();
   window.scrollTo({ top: 0 });
 }
 
@@ -228,6 +230,8 @@ function renderSaisie() {
       </div>
     </div>
 
+    ${todayTopHTML(editDate)}
+
     <div class="card hero">
       <div class="hero-top">
         <h2>Le gorintō du jour</h2>
@@ -252,10 +256,11 @@ function renderSaisie() {
           <section class="card ring-card" style="--ring:${ringColor(r.id)}">
             <header>
               <span class="kanji">${r.kanji}</span>
-              <div><h3>${r.name} <small style="font-family:var(--sans);font-weight:400;font-size:12px;color:var(--ink-3)">· ${r.book}</small></h3><p>${r.sub}</p></div>
+              <div><h3>${r.name} <small style="font-family:var(--sans);font-weight:400;font-size:12px;color:var(--ink-3)">· ${r.book}</small></h3><p>${esc(r.sub)}</p></div>
               <span class="mini" data-mini="${r.id}"><b>—</b></span>
             </header>
             <p class="teach">${esc(MUSASHI[r.id].teach)}</p>
+            ${ritualsBlockHTML(r.id, editDate)}
             <div class="fields">${r.metrics.map(fieldHTML).join('')}
               ${r.id === 'feu' ? '<div class="e1rm" id="e1rmLine"></div>' : ''}
               <label class="f full refl"><span>${esc(MUSASHI[r.id].prompts[qIdx])} <em>réflexion</em></span>
@@ -277,7 +282,7 @@ function renderSaisie() {
 
   // remplir les valeurs
   for (const f of FIELDS) {
-    if (f.type === 'scale') paintScale(f.k);
+    if (f.type === 'scale' || f.type === 'check') paintScale(f.k);
     else { const inp = el.querySelector(`[name="${f.k}"]`); if (inp && draft[f.k] != null) inp.value = draft[f.k]; }
   }
   paintScale('principle_s');
@@ -299,34 +304,42 @@ function renderSaisie() {
     entries[editDate] = { deleted: true, updatedAt: Date.now() }; saveEntries(); toast('Journée supprimée');
     autoSync(); renderSaisie();
   };
+  bindToday(el);
   updateLive();
 }
 function fieldHTML(m) {
+  const L = esc(m.label);
   if (m.type === 'scale') {
-    return `<div class="f"><div class="f-lbl">${m.label} <em>1–5</em></div>
-      <div class="scale" data-k="${m.k}">${[1, 2, 3, 4, 5].map(v => `<button type="button" data-v="${v}" aria-label="${m.label} ${v}">${v}</button>`).join('')}</div></div>`;
+    return `<div class="f"><div class="f-lbl">${L} <em>1–5</em></div>
+      <div class="scale" data-k="${m.k}">${[1, 2, 3, 4, 5].map(v => `<button type="button" data-v="${v}" aria-label="${L} ${v}">${v}</button>`).join('')}</div></div>`;
+  }
+  if (m.type === 'check') {
+    return `<div class="f"><div class="f-lbl">${L} <em>oui / non</em></div>
+      <div class="scale two" data-k="${m.k}"><button type="button" data-v="0">Non</button><button type="button" data-v="1">Oui</button></div></div>`;
   }
   if (m.type === 'select') {
-    return `<label class="f"><span>${m.label}</span><select name="${m.k}">${m.options.map(o => `<option value="${esc(o)}" ${draft[m.k] === o ? 'selected' : ''}>${o || '—'}</option>`).join('')}</select></label>`;
+    return `<label class="f"><span>${L}</span><select name="${m.k}">${(m.options || ['']).map(o => `<option value="${esc(o)}" ${draft[m.k] === o ? 'selected' : ''}>${esc(o) || '—'}</option>`).join('')}</select></label>`;
   }
-  const t = m.target != null ? `objectif ${nf(target(m.k))} ${m.unit}` : m.unit;
-  return `<label class="f"><span>${m.label} <em>${esc(t)}</em></span>
-    <input type="number" name="${m.k}" inputmode="decimal" min="0" max="${m.max}" step="${m.step}" placeholder="—"></label>`;
+  if (m.type === 'text') return `<label class="f full"><span>${L}</span><input type="text" name="${m.k}" maxlength="200" placeholder="—"></label>`;
+  const tv = target(m.k), t = isNum(tv) && !m.bench && !m.noScore ? `objectif ${nf(tv)} ${m.unit || ''}` : (m.unit || '');
+  return `<label class="f"><span>${L} <em>${esc(t.trim())}</em></span>
+    <input type="number" name="${m.k}" inputmode="decimal" min="0" max="${m.max || 100000}" step="${m.step || 'any'}" placeholder="—"></label>`;
 }
 function paintScale(k) {
   const s = $(`.scale[data-k="${k}"]`); if (!s) return; const v = draft[k];
-  s.querySelectorAll('button').forEach(b => { const x = +b.dataset.v; b.classList.toggle('on', x === v); b.classList.toggle('in', v != null && x < v); b.setAttribute('aria-pressed', x === v); });
+  s.querySelectorAll('button').forEach(b => { const x = +b.dataset.v; b.classList.toggle('on', x === v); b.classList.toggle('in', v != null && x < v && !s.classList.contains('two')); b.setAttribute('aria-pressed', x === v); });
 }
 function onFormInput(e) {
   const t = e.target; if (!t.name) return;
-  if (t.name === 'note' || t.name === 'sport_type' || t.name.startsWith('refl_')) draft[t.name] = t.value || null;
+  const ff = FIELD_BY_K[t.name];
+  if (t.name === 'note' || t.name.startsWith('refl_') || (ff && (ff.type === 'select' || ff.type === 'text'))) draft[t.name] = t.value || null;
   else { const v = t.value === '' ? null : parseFloat(t.value.replace(',', '.')); draft[t.name] = isNum(v) ? v : null; }
   markDirty(); updateLive();
 }
 function markDirty() { const s = $('#saveState'); if (s) s.textContent = 'Modifications non enregistrées'; }
 function updateLive() {
   const best = Math.max(bestE1rmBefore(addDays(editDate, -1)), e1rm(draft) || 0);
-  const sc = scoreEntry(draft, best);
+  const sc = scoreEntry(draft, best, editDate);
   updateGorinto($('#heroRings'), sc);
   $('#totalScore').textContent = Object.values(draft).some(v => v != null && v !== '') ? sc.overall : '—';
   RINGS.forEach(r => { const m = $(`[data-mini="${r.id}"]`); if (m) m.innerHTML = `<b>${sc[r.id] ?? '—'}</b>`; });
@@ -337,7 +350,10 @@ function updateLive() {
   }
 }
 function saveDay() {
-  const clean = {};
+  const clean = {}, ex = get(editDate) || {};
+  const own = ['note', 'updatedAt', 'demo', 'deleted', 'principle', 'principle_s', 'done', 'todos', 'intention', 'intention_done'];
+  for (const k in ex) if (!FIELD_BY_K[k] && !own.includes(k) && !k.startsWith('refl_')) clean[k] = ex[k];   // métriques retirées : on garde l'historique
+  for (const k of ['done', 'todos', 'intention', 'intention_done']) if (draft[k] != null) clean[k] = draft[k];
   for (const f of FIELDS) { const v = draft[f.k]; if (v != null && v !== '') clean[f.k] = v; }
   if (draft.note && draft.note.trim()) clean.note = draft.note.trim();
   if (isNum(draft.principle_s)) { clean.principle_s = draft.principle_s; clean.principle = isNum(draft.principle) ? draft.principle : principleIdx(editDate); }
@@ -497,6 +513,7 @@ const PAIRS = [
 function correlations(dates) {
   const out = [];
   for (const [a, b, lag] of PAIRS) {
+    if (!FIELD_BY_K[a] || !FIELD_BY_K[b]) continue;
     const xs = [], ys = [];
     for (const d of dates) {
       const x = fieldVal(get(d), a), y = fieldVal(get(addDays(d, lag)), b);
@@ -533,6 +550,7 @@ function renderInsights() {
     return;
   }
   const P = settings.period;
+  if (!FIELD_BY_K[explorerKey]) explorerKey = (FIELDS.find(f => ['num', 'scale', 'check'].includes(f.type)) || { k: 'sleep_h' }).k;
   const dates = periodDates(P), prev = prevDates(dates);
   const sc = scores();
   const logged = dates.filter(d => get(d)).length;
@@ -575,7 +593,7 @@ function renderInsights() {
 
     <div class="grid g2" style="margin-top:16px">
       <div class="card"><h2>Explorer une métrique</h2>
-        <select id="explorerSel" style="margin:6px 0 12px">${RINGS.map(r => `<optgroup label="${r.kanji} ${r.name}">${r.metrics.filter(m => m.type !== 'select' && m.k !== 'bench_reps').map(m => `<option value="${m.k}" ${m.k === explorerKey ? 'selected' : ''}>${m.short}</option>`).join('')}${r.id === 'feu' ? `<option value="bench_e1rm" ${explorerKey === 'bench_e1rm' ? 'selected' : ''}>1RM estimé (bench)</option>` : ''}</optgroup>`).join('')}</select>
+        <select id="explorerSel" style="margin:6px 0 12px">${RINGS.map(r => `<optgroup label="${r.kanji} ${r.name}">${r.metrics.filter(m => !['select', 'text'].includes(m.type) && m.k !== 'bench_reps').map(m => `<option value="${m.k}" ${m.k === explorerKey ? 'selected' : ''}>${m.short}</option>`).join('')}${r.id === 'feu' ? `<option value="bench_e1rm" ${explorerKey === 'bench_e1rm' ? 'selected' : ''}>1RM estimé (bench)</option>` : ''}</optgroup>`).join('')}</select>
         <div id="explorer"></div></div>
       <div class="card" style="--ring:var(--feu)"><h2><span style="color:var(--feu)">火</span> Bench press</h2><p class="sub">1RM estimé (formule d'Epley) sur tout l'historique</p><div id="benchBox"></div></div>
     </div>
@@ -605,7 +623,7 @@ function renderInsights() {
     const f = FIELD_BY_K[explorerKey], vals = dates.map(d => fieldVal(get(d), explorerKey));
     const nums = vals.filter(isNum), pv = prev.map(d => fieldVal(get(d), explorerKey)).filter(isNum);
     const sl = slopePerWeek(dates, d => fieldVal(get(d), explorerKey));
-    const u = f.unit || '/5', dg = f.unit === 'h' ? 2 : 1;
+    const u = f.unit || (f.type === 'scale' ? '/5' : ''), dg = f.unit === 'h' ? 2 : 1;
     const box = $('#explorer');
     if (!nums.length) { box.innerHTML = `<p class="fine">Aucune donnée ${periodLbl} pour cette métrique.</p>`; return; }
     box.innerHTML = `<div class="stats">
@@ -617,7 +635,7 @@ function renderInsights() {
     </div><div class="chart" id="exChart"></div>`;
     const col = ringColor(f.ring);
     const series = [{ name: f.short, color: col, values: vals, dots: true, line: false }, { name: 'moy. 7 j', color: col, values: rolling(vals, 7, [6, 5, 4, 3, 2, 1].map(n => fieldVal(get(addDays(dates[0], -n)), explorerKey))), bridge: true }];
-    if (f.target != null) series.push({ name: 'objectif', color: 'var(--ink-3)', values: dates.map(() => target(f.k)), dash: '4 4', width: 1.2, noTip: true });
+    if (isNum(target(f.k))) series.push({ name: 'objectif', color: 'var(--ink-3)', values: dates.map(() => target(f.k)), dash: '4 4', width: 1.2, noTip: true });
     lineChart($('#exChart'), { labels: dates, series, h: 200, unit: f.unit || '', yMin: f.type === 'scale' ? 1 : (f.k.startsWith('bench') ? 'auto' : 0), yMax: f.type === 'scale' ? 5 : null, fmt: v => nf(v, dg) });
   };
   $('#explorerSel').onchange = e => { explorerKey = e.target.value; drawExplorer(); };
@@ -723,13 +741,10 @@ function renderJournal() {
 function renderReglages() {
   const el = $('#view-reglages'), g = settings.gh;
   const tgt = FIELDS.filter(f => f.target != null);
-  const hasDemo = Object.values(entries).some(e => e.demo && !e.deleted);
-  el.innerHTML = `<div class="view-head"><div><h1>Réglages</h1><p>Objectifs, synchronisation GitHub et données.</p></div></div>
+  const hasDemo = Object.values(entries).some(e => e.demo && !e.deleted) || [...C().habits, ...C().goals].some(x => x.demo && !x.deleted);
+  el.innerHTML = `<div class="view-head"><div><h1>Réglages</h1><p>Métriques, synchronisation GitHub et données.</p></div></div>
   <div class="stack">
-    <div class="card"><h2>Objectifs quotidiens</h2><p class="sub">Atteindre l'objectif donne 100 % pour la métrique. Les échelles 1–5 sont notées telles quelles ; le bench est noté par rapport à ton record.</p>
-      <div class="set-grid">${tgt.map(f => `<label class="f"><span>${RING_BY_ID[f.ring].kanji} ${f.short} <em>${f.unit}</em></span>
-        <input type="number" data-t="${f.k}" min="0" step="${f.step}" value="${target(f.k)}"></label>`).join('')}</div>
-      <div class="row" style="margin-top:14px"><button class="btn primary" id="saveTargets">Enregistrer les objectifs</button><button class="btn ghost" id="resetTargets">Valeurs par défaut</button></div></div>
+    <div class="card" id="metricsEd"></div>
 
     <div class="card"><h2>Synchronisation GitHub</h2>
       <p class="sub">Tes journées sont écrites dans un fichier JSON d'un dépôt GitHub, pour les retrouver sur tous tes appareils et garder un historique versionné.</p>
@@ -762,11 +777,6 @@ function renderReglages() {
     <div class="card"><h2>Apparence</h2><div class="chips" id="themeChips">${[['auto', 'Système'], ['light', 'Washi (clair)'], ['dark', 'Sumi (sombre)']].map(([v, t]) => `<button class="chip" data-th="${v}" aria-pressed="${(settings.theme || 'auto') === v}">${t}</button>`).join('')}</div></div>
   </div>`;
 
-  $('#saveTargets').onclick = () => {
-    $$('[data-t]').forEach(i => { const v = parseFloat(i.value); if (isNum(v) && v > 0) settings.targets[i.dataset.t] = v; });
-    settings.targetsAt = Date.now(); saveSettings(); _scores = null; toast('Objectifs enregistrés'); autoSync();
-  };
-  $('#resetTargets').onclick = () => { settings.targets = {}; saveSettings(); _scores = null; renderReglages(); toast('Objectifs par défaut'); };
   $('#ghSave').onclick = async () => {
     Object.assign(settings.gh, { owner: $('#ghOwner').value.trim(), repo: $('#ghRepo').value.trim(), branch: $('#ghBranch').value.trim() || 'main', path: $('#ghPath').value.trim().replace(/^\/+/, '') || 'gorin/journal.json', token: $('#ghToken').value.trim() });
     saveSettings(); if (!ghReady()) { toast('Renseigne propriétaire, dépôt et token'); return; }
@@ -782,10 +792,13 @@ function renderReglages() {
     try { const data = JSON.parse(await f.text()); const n = mergeIn(data); saveEntries(); toast(`${n} journée(s) importée(s)`); autoSync(); renderReglages(); }
     catch { toast('Fichier invalide'); }
   };
-  const ud = $('#unDemo'); if (ud) ud.onclick = () => { const t = Date.now(); for (const d in entries) if (entries[d].demo) entries[d] = { deleted: true, updatedAt: t }; saveEntries(); autoSync(); renderReglages(); toast('Données de démo retirées'); };
+  const ud = $('#unDemo'); if (ud) ud.onclick = () => { const t = Date.now(); for (const d in entries) if (entries[d].demo) entries[d] = { deleted: true, updatedAt: t };
+    for (const x of [...C().habits, ...C().goals]) if (x.demo) Object.assign(x, { deleted: true, updatedAt: t });
+    saveSettings(); saveEntries(); autoSync(); renderReglages(); toast('Données de démo retirées'); };
   const db = $('#demoBtn2'); if (db) db.onclick = () => { loadDemo(); renderReglages(); };
   $('#wipeBtn').onclick = () => { if (!confirm('Effacer toutes les journées de ce navigateur ?')) return; entries = {}; saveEntries(); renderReglages(); toast('Données locales effacées'); };
   $('#themeChips').onclick = e => { const b = e.target.closest('.chip'); if (!b) return; settings.theme = b.dataset.th; saveSettings(); applyTheme(); renderReglages(); };
+  renderMetricsEditor($('#metricsEd'));
 }
 function download(name, text, type) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click();
@@ -827,7 +840,7 @@ async function ghPut(obj, sha) {
 function ghErr(s) {
   return ({ 401: 'Token refusé (401) — vérifie-le ou régénère-le', 403: 'Accès interdit (403) — le token doit avoir Contents : Read and write sur ce dépôt', 404: 'Dépôt introuvable (404) — vérifie propriétaire, nom et accès du token' })[s] || `Erreur GitHub ${s}`;
 }
-function bundle() { return { app: 'gorin', version: 1, updatedAt: settings.targetsAt || 0, savedAt: Date.now(), targets: settings.targets, entries }; }
+function bundle() { return { app: 'gorin', version: 1, updatedAt: settings.targetsAt || 0, savedAt: Date.now(), targets: settings.targets, cfg: exportCfg(), entries }; }
 function mergeIn(data) {
   if (!data) return 0; const src = data.entries || data; let n = 0;
   for (const [d, e] of Object.entries(src)) {
@@ -836,6 +849,7 @@ function mergeIn(data) {
     if (!mine || (e.updatedAt || 0) > (mine.updatedAt || 0)) { entries[d] = e; n++; }
   }
   if (data.targets && typeof data.targets === 'object' && (data.updatedAt || 0) > (settings.targetsAt || 0)) { settings.targets = { ...data.targets }; saveSettings(); }
+  if (data.cfg) mergeCfg(data.cfg);
   return n;
 }
 let syncing = false, syncAgain = false;
@@ -846,10 +860,12 @@ async function sync(loud = false) {
   try {
     for (let attempt = 0; attempt < 3; attempt++) {
       const { data, sha } = await ghGet();
-      const before = JSON.stringify(entries);
+      const snap = () => JSON.stringify(entries) + JSON.stringify(exportCfg());
+      const before = snap();
       mergeIn(data);
-      if (JSON.stringify(entries) !== before) { saveEntries(); rerenderCurrent(); }
-      const remoteSame = data && JSON.stringify(data.entries) === JSON.stringify(entries) && JSON.stringify(data.targets || {}) === JSON.stringify(settings.targets);
+      if (snap() !== before) { saveEntries(); rerenderCurrent(); }
+      const remoteSame = data && JSON.stringify(data.entries) === JSON.stringify(entries) && JSON.stringify(data.targets || {}) === JSON.stringify(settings.targets)
+        && JSON.stringify(data.cfg || null) === JSON.stringify(exportCfg());
       try { if (!remoteSame) await ghPut(bundle(), sha); break; }
       catch (e) { if (!e.conflict || attempt === 2) throw e; }
     }
@@ -871,8 +887,10 @@ function setPill(state, msg) {
 }
 function rerenderCurrent() {
   const v = (location.hash.slice(1) || 'saisie').split('/')[0];
+  const a = document.activeElement;
+  if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.closest('main')) return;   // ne pas couper une saisie en cours
   if (v === 'saisie') { if (!$('#saveState') || !/non enregistr/.test($('#saveState').textContent)) renderSaisie(); }
-  else if (v === 'insights') renderInsights(); else if (v === 'journal') renderJournal();
+  else ({ objectifs: renderObjectifs, rituels: renderRituels, voie: renderVoie, insights: renderInsights, journal: renderJournal })[v]?.();
 }
 
 /* ============================================================
@@ -883,6 +901,7 @@ function loadDemo(days = 75) {
   const gauss = () => { let u = 0, v = 0; while (!u) u = rnd(); while (!v) v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
   const r4 = v => Math.round(v * 4) / 4, sc5 = v => clamp(Math.round(v), 1, 5);
   let bench = 72.5, prevSport = 0, added = 0; const t = Date.now();
+  const demoH = demoCfg(days);
   for (let i = days - 1; i >= 0; i--) {
     const d = addDays(todayISO(), -i); if (get(d)) continue;
     if (rnd() < .07) continue;
@@ -905,6 +924,7 @@ function loadDemo(days = 75) {
       demo: true, updatedAt: t,
     };
     if (type) e.sport_type = type;
+    demoDone(e, d, rnd, prog, demoH);
     if (rnd() < .75) { e.principle = principleIdx(d); e.principle_s = sc5(2.8 + prog + (med ? .4 : 0) + gauss() * .8); }
     if (type === 'Musculation') { bench += .6 + gauss() * .4 + (sleep - 7) * .2; e.bench_kg = Math.round(bench / 2.5) * 2.5; e.bench_reps = 3 + Math.floor(rnd() * 5); }
     for (const k in e) if (e[k] == null) delete e[k];
@@ -961,7 +981,7 @@ function musashiReads(curR, li) {
       "Musashi met en garde contre ceux qui ne cultivent qu'une seule arme. Rééquilibre ton gorintō."));
   }
   const last = rangeDates(21); let worst = null;
-  for (const f of FIELDS.filter(f => f.target != null)) {
+  for (const f of FIELDS.filter(f => f.type === 'num' && isNum(target(f.k)))) {
     const vals = last.map(d => fieldVal(get(d), f.k)).filter(isNum); if (vals.length < 10) continue;
     const m = mean(vals), t = target(f.k), sl = slopePerWeek(last, d => fieldVal(get(d), f.k));
     if (m < t * .8 && sl != null && Math.abs(sl) < t * .04) { const gap = 1 - m / t; if (!worst || gap > worst.gap) worst = { f, m, gap }; }
@@ -1033,6 +1053,7 @@ function renderVoie() {
  * 15. Démarrage
  * ============================================================ */
 function init() {
+  cfgInit();
   applyTheme();
   const dk = dokkodoIdx(todayISO());
   $('#maxim').textContent = DOKKODO[dk];
@@ -1045,4 +1066,4 @@ function init() {
   let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (!$('#view-insights').hidden) renderInsights(); }, 200); });
   addEventListener('beforeunload', e => { const s = $('#saveState'); if (s && /non enregistr/.test(s.textContent) && !$('#view-saisie').hidden) { e.preventDefault(); e.returnValue = ''; } });
 }
-init();
+document.addEventListener('DOMContentLoaded', init);
