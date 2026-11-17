@@ -231,6 +231,7 @@ function renderSaisie() {
     </div>
 
     ${todayTopHTML(editDate)}
+    ${coachHTML(editDate)}
 
     <div class="card hero">
       <div class="hero-top">
@@ -305,6 +306,7 @@ function renderSaisie() {
     autoSync(); renderSaisie();
   };
   bindToday(el);
+  bindCoach();
   updateLive();
 }
 function fieldHTML(m) {

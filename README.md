@@ -17,6 +17,11 @@ Chaque domaine de ta vie est rattaché à un anneau :
 - **Objectifs** : vision à 3–5 ans, objectifs par axe (carrière, santé, savoir…), étapes intermédiaires avec échéances réparties automatiquement, repère « dans les temps / en retard », rituels liés, revue de la semaine.
 - **Métriques libres** (Réglages) : renomme, ajoute ou retire des métriques (nombre, échelle 1–5, oui/non, choix, texte) et règle leurs objectifs.
 
+**Progresser, pas seulement mesurer** :
+- **Le maître** (page Aujourd'hui) : trois conseils par jour, tirés de tes propres données. Il repère l'étape en retard (et en fait l'essentiel du jour en un clic), le rituel qui ne prend pas (réduis-le à sa version minimale), l'objectif sans rituel, la dette de sommeil, l'anneau délaissé (avec une idée de rituel prête à ajouter), la baisse ou la hausse de régime, la revue de semaine oubliée, et la corrélation la plus forte de ton historique. « Plus tard » masque un conseil jusqu'au lendemain. Le cap fixé dans ta dernière revue s'affiche en tête toute la semaine.
+- **Séance** : minuteur de concentration (10, 25, 50 ou 90 min) relié à une métrique en minutes ou en heures (travail profond, étude, méditation, sport…). À la fin, le temps s'ajoute tout seul à ta journée. Le minuteur survit à un rechargement de page, sonne et notifie à la fin.
+- **Installable et hors ligne** : sur téléphone, « Ajouter à l'écran d'accueil » ; le site fonctionne sans réseau.
+
 **Inspiré du texte** :
 - **Gorintō** : la stèle à cinq pierres (cube, sphère, toit, demi-lune, joyau) qui donne son nom au livre ; chaque pierre se remplit selon ton score du jour.
 - **Les neuf principes** du livre de la Terre : un principe par jour, que tu notes de 1 à 5.
@@ -33,7 +38,7 @@ Site 100 % statique : aucun serveur, aucune dépendance.
 ## Déployer sur GitHub Pages
 
 1. Crée un dépôt nommé **`<ton-pseudo>.github.io`** (public).
-2. Mets-y le contenu de ce dossier (`index.html`, `style.css`, `musashi.js`, `app.js`, `rituels.js`, `.nojekyll`, `README.md`) :
+2. Mets-y le contenu de ce dossier (`index.html`, `style.css`, `musashi.js`, `app.js`, `rituels.js`, `coach.js`, `sw.js`, `manifest.webmanifest`, les icônes, `.nojekyll`, `README.md`) :
    ```bash
    git clone https://github.com/<ton-pseudo>/<ton-pseudo>.github.io
    cd <ton-pseudo>.github.io
